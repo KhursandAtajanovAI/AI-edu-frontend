@@ -4,6 +4,9 @@ import { workshops } from '../workspace/workshops'
 import { GuidedAssignment } from './GuidedAssignment'
 import { AssignmentConfigEditor } from './AssignmentConfigEditor'
 import { defaultTaskConfig, validateTaskConfig } from './commonTask'
+import { BiometricLab } from './BiometricLab'
+import { BiometricLabConfigEditor } from './BiometricLabConfigEditor'
+import { initialLabConfig, validateLabConfig } from './labConfig'
 
 const plugins = new Map<string, PracticePlugin>()
 export function registerPractice(plugin: PracticePlugin) {
@@ -24,4 +27,10 @@ registerPractice({ type: 'guided_assignment', version: '1.0.0',
   initialConfig: () => ({ instructions: [JSON.stringify({ type: 'doc', content: [{ type: 'paragraph' }] })], criteria: [{ title: '', description: '', is_required: true }] }),
   ConfigEditor: AssignmentConfigEditor, StudentRuntime: GuidedAssignment,
   validateConfig: validateTaskConfig,
+})
+
+registerPractice({ type: 'biometric_lab', version: '1.0.0',
+  initialConfig: initialLabConfig,
+  ConfigEditor: BiometricLabConfigEditor, StudentRuntime: BiometricLab,
+  validateConfig: validateLabConfig,
 })

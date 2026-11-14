@@ -160,3 +160,5 @@
   .practice-result-summary { padding: 16px; }
   .lecture-chat-heading > .lecture-chat-heading-icon { display: none; }
 }
+.biometric-lab-execution { display: grid; gap: 14px; }
+.biometric-lab-frame { width: 100%; height: min(78vh, 900px); min-height: 520px; border: 1px solid var(--color-border, #dfe3ec); border-radius: 12px; background: #fff; }

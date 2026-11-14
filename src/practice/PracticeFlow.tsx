@@ -135,7 +135,7 @@ export function PracticeFlow({ state, plugin, item, ownerId, busy, start, submit
         {criteria.length ? <ol>{criteria.map((criterion, index) => <li key={index}><strong>{criterion.title}</strong>{criterion.description && <p>{criterion.description}</p>}{criterion.is_required && <small>{t('Обязательный критерий')}</small>}</li>)}</ol>
           : <p className="muted">{t('Критерии пока не заданы преподавателем. Перед завершением проверьте результат по инструкции.')}</p>}
       </section>
-      <div className="practice-tool-card"><Sparkles size={22}/><div><small>{t('Инструмент выполнения')}</small><strong>{t(workshopFor(version.practice_type)?.title ?? 'Практическое задание')}</strong></div>
+      <div className="practice-tool-card"><Sparkles size={22}/><div><small>{t('Инструмент выполнения')}</small><strong>{t(workshopFor(version.practice_type)?.title ?? (version.practice_type === 'biometric_lab' ? 'Виртуальная лаборатория «Биометрия»' : 'Практическое задание'))}</strong></div>
         <Button disabled={busy} onClick={() => void enter()}>{t(submitted ? 'Посмотреть результат' : state.submission ? 'Продолжить выполнение' : 'Начать выполнение')}<ArrowRight size={16}/></Button></div>
     </div>}
     {entered && <div className="practice-work-panel" hidden={step !== 'work'}>
