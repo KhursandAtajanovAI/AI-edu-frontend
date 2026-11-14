@@ -1,0 +1,10 @@
+{
+  "name": "nn-3d-viz-lab",
+  "private": true,
+  "description": "A static site with no build step. package.json only makes Node treat .js files as ES modules (for tools/check-spaces.mjs).",
+  "type": "module",
+  "scripts": {
+    "manifest": "bash tools/build-manifest.sh",
+    "check": "bash tools/build-manifest.sh && node tools/check-spaces.mjs"
+  }
+}

@@ -1,0 +1,432 @@
+import * as THREE from 'three';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { PALETTE, IDLE_COLOR as COLOR_IDLE, weightColor, signColor, setGlow } from './palette.js';
+import { formatValue, layerShortL } from './format.js';
+import { L, isText, setT } from '../i18n/i18n.js';
+
+const LAYER_GAP = 4;
+const NEURON_GAP = 1.2;
+const RADIUS = 0.28;
+
+// Связи: в покое — тонкие и приглушённые, при прохождении сигнала — толстые и яркие.
+// GAIN > 1 выводит цвет за порог bloom, и линия начинает светиться. Прозрачность и яркость зависят от темы (PALETTE.links).
+const LINE_WIDTH = { rest: 1, active: 3.5 };
+
+const GRAD_COLOR = new THREE.Color(0xc77dff);
+
+// Подписи соразмерны шарикам: каждый кадр считаем экранный радиус нейрона (px) и передаём его
+// в CSS-переменную --nv-r слоя меток; размеры шрифтов — в lab.css (.nv). Шарик при активации
+// растёт до ×1.3, поэтому отступы подписей берём с запасом.
+const LABEL_GAP = { value: RADIUS * 1.35, name: RADIUS * 1.45, layer: RADIUS * 1.7 };
+// Числа, которые на экране налезли бы на уже показанные (плотные слои, сетка нейронов в глубину,
+// мелкий масштаб), скрываются и видны только у нейрона под курсором. Ширина числа оценивается
+// по моноширинному шрифту: 0,6 em на символ плюс поля.
+const CHAR_EM = 0.6, PAD_EM = 0.7, LINE_EM = 1.3;
+const _v = new THREE.Vector3();
+
+function makeLabel(className, text = '') {
+  const el = document.createElement('div');
+  el.className = `${className} nv`;
+  if (isText(text)) setT(el, text); else el.textContent = text ?? ''; // L(...) переводится при смене языка
+  return new CSS2DObject(el);
+}
+
+// 3D-представление сети: сферы-нейроны и линии-связи, сгруппированные по слоям.
+export class NetworkView {
+  constructor(scene) {
+    this.scene = scene;
+    this.group = new THREE.Group();
+    scene.add(this.group);
+    this.sphereGeo = new THREE.SphereGeometry(RADIUS, 32, 16);
+    this.resolution = new THREE.Vector2(1, 1);
+    this.showNumbers = false;
+  }
+
+  /**
+   * @param {object} network — модель с полями layers, weights (см. models/mlp.js)
+   * @param {object} [opts]
+   * @param {(string[]|undefined)[]} [opts.names] — имена нейронов по слоям; показываются
+   *   слева от входного и справа от выходного слоя (например, «Кот», «Цена»)
+   */
+  build(network, { names = [] } = {}) {
+    this.dispose();
+    this.network = network;
+    const { layers } = network;
+
+    // Большие слои раскладываем в сетку по Y/Z, чтобы сцена оставалась компактной
+    this.positions = layers.map((count, l) => {
+      const x = (l - (layers.length - 1) / 2) * LAYER_GAP;
+      const cols = count > 8 ? Math.ceil(Math.sqrt(count)) : 1;
+      const rows = Math.ceil(count / cols);
+      return Array.from({ length: count }, (_, i) => {
+        const r = i % rows, c = Math.floor(i / rows);
+        return new THREE.Vector3(x, ((rows - 1) / 2 - r) * NEURON_GAP, (c - (cols - 1) / 2) * NEURON_GAP);
+      });
+    });
+
+    this.valueLabels = new THREE.Group();
+    this.valueLabels.visible = this.showNumbers;
+    this.group.add(this.valueLabels);
+
+    this.neurons = this.positions.map((layer, l) => layer.map((p, i) => {
+      const mat = new THREE.MeshStandardMaterial({
+        color: COLOR_IDLE.clone(), emissive: COLOR_IDLE.clone(), emissiveIntensity: 0.15,
+        roughness: 0.6, metalness: 0,
+      });
+      const mesh = new THREE.Mesh(this.sphereGeo, mat);
+      mesh.position.copy(p);
+      mesh.userData = { layer: l, index: i };
+      this.group.add(mesh);
+
+      const label = makeLabel('value-label');
+      label.center.set(0.5, 0); // верхний край подписи — под шариком, по центру
+      label.position.copy(p).add(new THREE.Vector3(0, -LABEL_GAP.value, 0));
+      this.valueLabels.add(label);
+      mesh.userData.label = label;
+      return mesh;
+    }));
+
+    // Подписи слоёв над каждым столбцом нейронов
+    this.positions.forEach((layer, l) => {
+      const top = Math.max(...layer.map(p => p.y));
+      const label = makeLabel('layer-label', L('lab.layerWithCount', { name: layerShortL(l, layers.length), n: layers[l] }));
+      label.center.set(0.5, 1); // нижний край — над верхним шариком
+      label.position.set(layer[0].x, top + LABEL_GAP.layer, 0);
+      this.group.add(label);
+    });
+
+    // Имена нейронов: у входного слоя — слева, у выходного — справа
+    const last = layers.length - 1;
+    for (const l of [0, last]) {
+      const list = names[l];
+      if (!list) continue;
+      const side = l === 0 ? -1 : 1;
+      this.positions[l].forEach((p, i) => {
+        if (!list[i]) return;
+        const label = makeLabel(`name-label ${side < 0 ? 'left' : 'right'}`, list[i]);
+        label.position.copy(p).add(new THREE.Vector3(side * LABEL_GAP.name, 0, 0));
+        // Выравниваем по краю, обращённому к нейрону
+        label.center.set(side < 0 ? 1 : 0, 0.5);
+        this.group.add(label);
+      });
+    }
+
+    // При смене темы меняется нейтральный цвет слабых связей — перекрашиваем их (SceneKit.applyTheme)
+    this.group.userData.recolor = () => {
+      this.refreshWeights();
+      this.connections.forEach(lines => this.styleConnection(lines));
+    };
+
+    // Одна LineSegments2 на каждый промежуток между слоями; цвет — знак и сила веса
+    this.connections = [];
+    this.pulses = [];
+    for (let l = 0; l < layers.length - 1; l++) {
+      const pos = [], cols = [], ends = [], pairs = [];
+      const W = network.weights[l];
+      const maxW = Math.max(...W.flat().map(Math.abs)) || 1;
+      const c = new THREE.Color();
+      W.forEach((row, j) => row.forEach((w, i) => {
+        const a = this.positions[l][i], b = this.positions[l + 1][j];
+        pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        weightColor(w, maxW, c);
+        cols.push(c.r, c.g, c.b, c.r, c.g, c.b);
+        ends.push([a, b]);
+        pairs.push([i, j]);
+      }));
+      const geo = new LineSegmentsGeometry();
+      geo.setPositions(pos);
+      geo.setColors(cols);
+      const mat = new LineMaterial({
+        vertexColors: true, transparent: true, depthWrite: false, worldUnits: false,
+      });
+      mat.resolution.copy(this.resolution);
+      const lines = new LineSegments2(geo, mat);
+      lines.userData = { gap: l, pairs };
+      this.group.add(lines);
+      this.connections.push(lines);
+
+      // «Импульсы» — точки, бегущие по связям во время forward-pass
+      const pGeo = new THREE.BufferGeometry();
+      pGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(ends.length * 3), 3));
+      const points = new THREE.Points(pGeo, new THREE.PointsMaterial({
+        color: PALETTE.pulse, size: 0.14, transparent: true, opacity: 0, depthWrite: false,
+      }));
+      points.userData.ends = ends;
+      this.group.add(points);
+      this.pulses.push(points);
+    }
+
+    // Подсветка при наведении: связи выбранного нейрона/линии, ореолы и подписи весов
+    this.highlight = new THREE.Group();
+    this.group.add(this.highlight);
+
+    this.reset();
+  }
+
+  setResolution(w, h) {
+    this.resolution.set(w, h);
+    this.connections?.forEach(c => c.material.resolution.set(w, h));
+    this.highlight?.traverse(o => o.material?.resolution?.set(w, h));
+  }
+
+  /**
+   * Размер подписей под текущую камеру и отсев налезающих чисел (вызывается каждый кадр).
+   * @param {THREE.PerspectiveCamera} camera
+   * @param {number} width — ширина сцены в px
+   * @param {number} height — высота сцены в px
+   * @param {HTMLElement} root — слой CSS2D-меток
+   */
+  updateLabelScale(camera, width, height, root) {
+    if (!this.positions || !root) return;
+    const dist = Math.max(0.1, camera.position.distanceTo(this.group.position));
+    const r = (RADIUS * height) / (2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    if (Math.abs(r - (this.labelRadius ?? 0)) >= 0.3) {
+      this.labelRadius = r;
+      root.style.setProperty('--nv-r', `${r.toFixed(1)}px`);
+      this.labelFont = null; // размер шрифта пересчитает CSS (clamp) — прочитаем его заново
+    }
+    if (!this.showNumbers) return;
+    // Раскладку пересчитываем, когда сдвинулась камера, и раз в ~полсекунды (меняется длина чисел, δ)
+    const key = `${camera.matrixWorld.elements.map(v => v.toFixed(3)).join()}|${width}|${height}`;
+    this.layoutTick = (this.layoutTick ?? 0) + 1;
+    if (key === this.layoutKey && this.layoutTick % 30) return;
+    this.layoutKey = key;
+    this.layoutLabels(camera, width, height);
+  }
+
+  /** Жадно показываем числа от ближних к дальним; число, перекрывающее показанное, прячем (видно при наведении) */
+  layoutLabels(camera, width, height) {
+    const labels = this.neurons.flat().map(m => m.userData.label);
+    if (!labels.length) return;
+    if (!this.labelFont) this.labelFont = parseFloat(getComputedStyle(labels[0].element).fontSize) || 12;
+    const font = this.labelFont, lh = font * LINE_EM;
+    const items = [];
+    for (const label of labels) {
+      _v.copy(label.position).applyMatrix4(this.valueLabels.matrixWorld).project(camera);
+      if (_v.z > 1 || _v.z < -1) continue;
+      const x = (_v.x + 1) / 2 * width, y = (1 - _v.y) / 2 * height;
+      const w = (label.element.textContent.length * CHAR_EM + PAD_EM) * font;
+      items.push({ label, x0: x - w / 2, x1: x + w / 2, y0: y, y1: y + lh, z: _v.z });
+    }
+    items.sort((a, b) => a.z - b.z);
+    const cell = Math.max(lh, 1) * 2, grid = new Map();
+    const keyOf = (i, j) => `${i},${j}`;
+    for (const it of items) {
+      const i0 = Math.floor(it.x0 / cell), i1 = Math.floor(it.x1 / cell);
+      const j0 = Math.floor(it.y0 / cell), j1 = Math.floor(it.y1 / cell);
+      let hit = false;
+      for (let i = i0; i <= i1 && !hit; i++) for (let j = j0; j <= j1 && !hit; j++) {
+        for (const o of grid.get(keyOf(i, j)) ?? []) {
+          if (it.x0 < o.x1 && o.x0 < it.x1 && it.y0 < o.y1 && o.y0 < it.y1) { hit = true; break; }
+        }
+      }
+      if (!hit) for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const k = keyOf(i, j);
+        if (!grid.has(k)) grid.set(k, []);
+        grid.get(k).push(it);
+      }
+      if (it.label.element.classList.contains('nv-hidden') !== hit) it.label.element.classList.toggle('nv-hidden', hit);
+    }
+  }
+
+  setShowNumbers(on) {
+    this.showNumbers = on;
+    this.layoutKey = null;
+    if (this.valueLabels) this.valueLabels.visible = on;
+    if (this.hover) this.setHover(this.hover);
+  }
+
+  reset() {
+    this.values = this.network.layers.map(n => Array(n).fill(null));
+    this.neurons.forEach((layer, l) => layer.forEach((_, i) => this.setNeuron(l, i, 0, 0)));
+    // Значения ещё не вычислены — показываем прочерк, а не 0
+    this.values = this.network.layers.map(n => Array(n).fill(null));
+    this.neurons.flat().forEach(m => { m.userData.label.element.textContent = '—'; });
+    this.connections.forEach((_, l) => this.setConnections(l, 0, 0));
+  }
+
+  /** Подсветить нейрон с учётом величины активации (amount 0..1 — прогресс анимации) */
+  setNeuron(l, i, activation, amount) {
+    const m = this.neurons[l][i];
+    const k = Math.min(1, Math.abs(activation)) * amount;
+    const sign = signColor(activation);
+    m.material.color.copy(COLOR_IDLE).lerp(sign, Math.min(1, k * 1.5));
+    m.material.emissive.copy(COLOR_IDLE).lerp(sign, Math.min(1, k * 3));
+    // Сила свечения растёт с активацией: всё, что выше порога bloom, начинает светиться
+    setGlow(m.material, 0.15, k * 1.6);
+    m.scale.setScalar(1 + 0.3 * k);
+
+    const shown = activation * amount;
+    this.values[l][i] = shown;
+    const el = m.userData.label.element;
+    el.textContent = formatValue(shown);
+    el.classList.toggle('pos', k > 0.05 && shown > 0);
+    el.classList.toggle('neg', k > 0.05 && shown < 0);
+  }
+
+  styleConnection(lines) {
+    const fade = lines.userData.fade ?? 0, { restOpacity, restGain, activeGain } = PALETTE.links;
+    const mat = lines.material;
+    mat.linewidth = LINE_WIDTH.rest + (LINE_WIDTH.active - LINE_WIDTH.rest) * fade;
+    mat.opacity = restOpacity + (1 - restOpacity) * fade;
+    mat.color.setScalar(restGain + (activeGain - restGain) * fade);
+  }
+
+  /** Анимация связей между слоями l и l+1: t 0..1 — позиция импульса, fade — насколько связь «активна» */
+  setConnections(l, t, fade = 1) {
+    const lines = this.connections[l];
+    lines.userData.fade = fade;
+    this.styleConnection(lines);
+
+    const p = this.pulses[l];
+    const arr = p.geometry.attributes.position.array;
+    p.userData.ends.forEach(([a, b], k) => {
+      arr[k * 3] = a.x + (b.x - a.x) * t;
+      arr[k * 3 + 1] = a.y + (b.y - a.y) * t;
+      arr[k * 3 + 2] = a.z + (b.z - a.z) * t;
+    });
+    p.geometry.attributes.position.needsUpdate = true;
+    p.material.opacity = t > 0 && t < 1 ? fade : 0;
+  }
+
+  /** Связь по индексу сегмента в LineSegments2 */
+  connectionAt(gap, segment) {
+    const [i, j] = this.connections[gap].userData.pairs[segment];
+    return { gap, from: i, to: j, weight: this.network.weights[gap][j][i] };
+  }
+
+  /**
+   * Подсветка наведённого объекта.
+   * hover: { type: 'neuron', layer, index } | { type: 'weight', gap, from, to } | null
+   */
+  setHover(hover) {
+    this.hover = hover;
+    // Скрытое (налезающее) число видно у нейрона под курсором
+    this.hoveredLabel?.classList.remove('hovered');
+    this.hoveredLabel = hover?.type === 'neuron' ? this.neurons[hover.layer][hover.index].userData.label.element : null;
+    this.hoveredLabel?.classList.add('hovered');
+    this.highlight.traverse(o => {
+      if (o.isCSS2DObject) o.element.remove();
+      o.geometry?.dispose();
+      o.material?.dispose();
+    });
+    this.highlight.clear();
+    if (!hover) return;
+
+    const W = this.network.weights;
+    const { layers } = this.network;
+    const MAX_LABELS = 12; // в больших слоях подписываем только самые сильные связи
+    const byStrength = (a, b) => Math.abs(W[b[0]][b[2]][b[1]]) - Math.abs(W[a[0]][a[2]][a[1]]);
+    const range = n => [...Array(n).keys()];
+
+    const links = []; // [gap, from, to, подписывать?]
+    const halos = [];
+    if (hover.type === 'neuron') {
+      const { layer: l, index: n } = hover;
+      halos.push(this.positions[l][n]);
+      const sides = [];
+      if (l > 0) sides.push(range(layers[l - 1]).map(i => [l - 1, i, n]));
+      if (l < layers.length - 1) sides.push(range(layers[l + 1]).map(j => [l, n, j]));
+      for (const side of sides) {
+        side.sort(byStrength).forEach((link, k) => links.push([...link, k < MAX_LABELS]));
+      }
+    } else {
+      const { gap, from, to } = hover;
+      links.push([gap, from, to, true]);
+      halos.push(this.positions[gap][from], this.positions[gap + 1][to]);
+    }
+
+    if (links.length) {
+      const pos = [], cols = [];
+      const c = new THREE.Color();
+      for (const [g, i, j, labeled] of links) {
+        const a = this.positions[g][i], b = this.positions[g + 1][j];
+        const w = W[g][j][i];
+        pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        weightColor(w, Math.max(...W[g].flat().map(Math.abs)), c);
+        cols.push(c.r, c.g, c.b, c.r, c.g, c.b);
+
+        if (this.showNumbers && labeled) {
+          // Подпись ставим ближе к «веерному» концу, где линии расходятся и не накладываются
+          const t = hover.type === 'weight' ? 0.5 : g === hover.layer ? 0.7 : 0.3;
+          const label = makeLabel(`weight-label ${w >= 0 ? 'pos' : 'neg'}`, formatValue(w));
+          label.position.lerpVectors(a, b, t);
+          this.highlight.add(label);
+        }
+      }
+      const geo = new LineSegmentsGeometry();
+      geo.setPositions(pos);
+      geo.setColors(cols);
+      const mat = new LineMaterial({ vertexColors: true, linewidth: 3, worldUnits: false, depthTest: false, transparent: true });
+      mat.color.setScalar(PALETTE.links.activeGain > 1 ? 1.6 : 1);
+      mat.resolution.copy(this.resolution);
+      const lines = new LineSegments2(geo, mat);
+      lines.renderOrder = 10;
+      this.highlight.add(lines);
+    }
+
+    for (const p of halos) {
+      const halo = new THREE.Mesh(this.sphereGeo, new THREE.MeshBasicMaterial({
+        color: PALETTE.hover, transparent: true, opacity: 0.18, depthWrite: false,
+      }));
+      halo.position.copy(p);
+      halo.scale.setScalar(1.8);
+      this.highlight.add(halo);
+    }
+  }
+
+  /** Перекрасить связи по текущим весам (после шага обучения) */
+  refreshWeights() {
+    const c = new THREE.Color();
+    this.connections.forEach((lines, l) => {
+      const W = this.network.weights[l];
+      const maxW = Math.max(...W.flat().map(Math.abs)) || 1;
+      const cols = [];
+      for (const [i, j] of lines.userData.pairs) {
+        weightColor(W[j][i], maxW, c);
+        cols.push(c.r, c.g, c.b, c.r, c.g, c.b);
+      }
+      lines.geometry.setColors(cols);
+    });
+  }
+
+  /** Окраска нейрона градиентом ошибки δ (фиолетовый — «ошибка», бежит назад при backprop) */
+  setGradient(l, i, delta, amount, maxAbs = 1) {
+    const m = this.neurons[l][i];
+    const k = Math.min(1, Math.abs(delta) / (maxAbs || 1)) * amount;
+    m.material.color.copy(COLOR_IDLE).lerp(GRAD_COLOR, Math.min(1, k * 1.5));
+    m.material.emissive.copy(GRAD_COLOR);
+    m.material.emissiveIntensity = 0.1 + k * 1.8;
+    m.scale.setScalar(1 + 0.3 * k);
+    m.userData.label.element.textContent = `δ ${formatValue(delta * amount)}`;
+    m.userData.label.element.classList.remove('pos', 'neg');
+  }
+
+  setPulseColor(color) {
+    this.pulses?.forEach(p => p.material.color.set(color));
+  }
+
+  get pickables() {
+    return { neurons: this.neurons.flat(), connections: this.connections };
+  }
+
+  get size() {
+    const box = new THREE.Box3();
+    this.positions.flat().forEach(p => box.expandByPoint(p));
+    box.expandByScalar(RADIUS * 2);
+    return box.getSize(new THREE.Vector3());
+  }
+
+  dispose() {
+    this.group.traverse(o => {
+      if (o.isCSS2DObject) o.element.remove();
+      if (o.geometry && o.geometry !== this.sphereGeo) o.geometry.dispose();
+      o.material?.dispose();
+    });
+    this.group.clear();
+    this.hover = null;
+  }
+}
