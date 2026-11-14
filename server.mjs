@@ -66,7 +66,14 @@ createServer(async (request, response) => {
 
   try {
     const info = await stat(file)
-    if (info.isDirectory()) file = resolve(file, 'index.html')
+    if (info.isDirectory()) {
+      // Папка без «/» в конце (например, /nn-3d-viz-lab): иначе относительные ссылки страницы разъедутся
+      if (!pathname.endsWith('/')) {
+        response.writeHead(301, { Location: `${pathname}/${new URL(request.url ?? '/', 'http://localhost').search}` }).end()
+        return
+      }
+      file = resolve(file, 'index.html')
+    }
   } catch {
     // Client-side routes should load the SPA entry point; missing assets should stay 404.
     if (extname(pathname)) {
@@ -90,7 +97,8 @@ createServer(async (request, response) => {
     const shouldCompress = compressible && info.size >= 1024 && acceptsGzip
     response.writeHead(200, {
       'Content-Type': mimeTypes[extname(file).toLowerCase()] ?? 'application/octet-stream',
-      'Cache-Control': isEntry || pathname.startsWith('/voice-assets/') ? 'no-cache' : 'public, max-age=31536000, immutable',
+      // Файлы встроенной 3D-лаборатории лежат без хешей в именах (как в её репозитории), поэтому их нельзя кэшировать «навсегда»
+      'Cache-Control': isEntry || pathname.startsWith('/voice-assets/') || pathname.startsWith('/nn-3d-viz-lab/') ? 'no-cache' : 'public, max-age=31536000, immutable',
       'Vary': 'Accept-Encoding',
       ...(shouldCompress ? { 'Content-Encoding': 'gzip' } : { 'Content-Length': info.size }),
     })
