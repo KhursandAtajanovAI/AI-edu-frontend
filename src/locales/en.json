@@ -983,5 +983,10 @@
   "завершено": "completed",
   "Ещё не завершили": "Not yet completed",
   "Всего начатых курсов": "Total course starts",
-  "Единица подсчёта — студент и курс. Один студент может учитываться в нескольких курсах.": "The counting unit is a student–course pair. A student may be counted in several courses."
+  "Единица подсчёта — студент и курс. Один студент может учитываться в нескольких курсах.": "The counting unit is a student–course pair. A student may be counted in several courses.",
+  "3D-лаборатория нейросетей": "Neural network 3D lab",
+  "Интерактивная практика": "Interactive practice",
+  "Интерактивные 3D-модели нейросетей: смотрите, как они устроены, запускайте вычисления и меняйте параметры.": "Interactive 3D models of neural networks: see how they are built, run computations and change parameters.",
+  "Открыть в новой вкладке": "Open in a new tab",
+  "3D-лаборатория": "3D lab"
 }
