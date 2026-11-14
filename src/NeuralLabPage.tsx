@@ -11,8 +11,8 @@ const LAB_SCALE_KEY = 'nnlab-scale'
 // У лаборатории по умолчанию масштаб ×2 (рассчитан на целое окно); в рамке платформы удобнее ×1. Выбор пользователя (+ / − в лаборатории) не трогаем.
 const LAB_DEFAULT_SCALE = '1'
 
-/** Язык лаборатории (RU | EN) по языку платформы: казахского у лаборатории нет, показываем русский. */
-export const labLanguage = (locale: Locale) => (locale === 'en' ? 'en' : 'ru')
+/** Язык лаборатории (ru | en | kk) по языку платформы: казахский на платформе называется kz, в лаборатории — kk. */
+export const labLanguage = (locale: Locale) => (locale === 'en' ? 'en' : locale === 'kz' ? 'kk' : 'ru')
 
 export function NeuralLabPage() {
   const { t, locale } = useI18n()

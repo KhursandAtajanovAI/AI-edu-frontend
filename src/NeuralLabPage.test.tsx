@@ -39,7 +39,7 @@ describe('NeuralLabPage', () => {
     renderPage()
     expect(localStorage.getItem('nnlab-lang')).toBe('ru')
     expect(labLanguage('en')).toBe('en')
-    expect(labLanguage('kz')).toBe('ru')
+    expect(labLanguage('kz')).toBe('kk')
   })
 
   it('sets a comfortable default scale but keeps the one chosen by the user', () => {
