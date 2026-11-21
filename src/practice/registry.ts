@@ -4,6 +4,7 @@ import { workshops } from '../workspace/workshops'
 import { GuidedAssignment } from './GuidedAssignment'
 import { AssignmentConfigEditor } from './AssignmentConfigEditor'
 import { defaultTaskConfig, validateTaskConfig } from './commonTask'
+import { registerVirtualLabPractices } from '../virtual-labs/practice/register'
 import { PythonLab } from './python/PythonLab'
 import { PythonLabEditor, defaultPythonLabConfig, validatePythonLabConfig } from './python/PythonLabEditor'
 import { BiometricLab } from './BiometricLab'
@@ -30,6 +31,10 @@ registerPractice({ type: 'guided_assignment', version: '1.0.0',
   ConfigEditor: AssignmentConfigEditor, StudentRuntime: GuidedAssignment,
   validateConfig: validateTaskConfig,
 })
+
+// Модуль «Виртуальные лаборатории»: работы № 4–14 как практики (типы virtual_lab_vw04 … virtual_lab_vw14)
+registerVirtualLabPractices({ registerPractice, ConfigEditor: AssignmentConfigEditor,
+  initialConfig: defaultTaskConfig, validateConfig: validateTaskConfig })
 
 // The runtime owns its own task, run and submit steps; checks are graded by the server.
 registerPractice({ type: 'python_lab', version: '1.0.0', layout: 'standalone',
