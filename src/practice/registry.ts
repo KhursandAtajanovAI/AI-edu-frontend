@@ -4,6 +4,8 @@ import { workshops } from '../workspace/workshops'
 import { GuidedAssignment } from './GuidedAssignment'
 import { AssignmentConfigEditor } from './AssignmentConfigEditor'
 import { defaultTaskConfig, validateTaskConfig } from './commonTask'
+import { PythonLab } from './python/PythonLab'
+import { PythonLabEditor, defaultPythonLabConfig, validatePythonLabConfig } from './python/PythonLabEditor'
 import { BiometricLab } from './BiometricLab'
 import { BiometricLabConfigEditor } from './BiometricLabConfigEditor'
 import { initialLabConfig, validateLabConfig } from './labConfig'
@@ -27,6 +29,12 @@ registerPractice({ type: 'guided_assignment', version: '1.0.0',
   initialConfig: () => ({ instructions: [JSON.stringify({ type: 'doc', content: [{ type: 'paragraph' }] })], criteria: [{ title: '', description: '', is_required: true }] }),
   ConfigEditor: AssignmentConfigEditor, StudentRuntime: GuidedAssignment,
   validateConfig: validateTaskConfig,
+})
+
+// The runtime owns its own task, run and submit steps; checks are graded by the server.
+registerPractice({ type: 'python_lab', version: '1.0.0', layout: 'standalone',
+  initialConfig: defaultPythonLabConfig, ConfigEditor: PythonLabEditor, StudentRuntime: PythonLab,
+  validateConfig: validatePythonLabConfig,
 })
 
 registerPractice({ type: 'biometric_lab', version: '1.0.0',
