@@ -6,6 +6,9 @@ import { AssignmentConfigEditor } from './AssignmentConfigEditor'
 import { defaultTaskConfig, validateTaskConfig } from './commonTask'
 import { PythonLab } from './python/PythonLab'
 import { PythonLabEditor, defaultPythonLabConfig, validatePythonLabConfig } from './python/PythonLabEditor'
+import { BiometricLab } from './BiometricLab'
+import { BiometricLabConfigEditor } from './BiometricLabConfigEditor'
+import { initialLabConfig, validateLabConfig } from './labConfig'
 
 const plugins = new Map<string, PracticePlugin>()
 export function registerPractice(plugin: PracticePlugin) {
@@ -32,4 +35,10 @@ registerPractice({ type: 'guided_assignment', version: '1.0.0',
 registerPractice({ type: 'python_lab', version: '1.0.0', layout: 'standalone',
   initialConfig: defaultPythonLabConfig, ConfigEditor: PythonLabEditor, StudentRuntime: PythonLab,
   validateConfig: validatePythonLabConfig,
+})
+
+registerPractice({ type: 'biometric_lab', version: '1.0.0',
+  initialConfig: initialLabConfig,
+  ConfigEditor: BiometricLabConfigEditor, StudentRuntime: BiometricLab,
+  validateConfig: validateLabConfig,
 })

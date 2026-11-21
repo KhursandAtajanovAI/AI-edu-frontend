@@ -1,0 +1,11 @@
+/* Страница «3D-лаборатория нейросетей»: лаборатория открывается в рамке на всю ширину контента */
+.neural-lab { min-width: 0; }
+.neural-lab .page-head { margin-bottom: 18px; }
+.neural-lab-external { display: inline-flex; align-items: center; gap: 8px; flex: none; padding: 9px 14px; color: var(--color-primary-dark); font-size: .88rem; font-weight: 620; text-decoration: none; background: var(--color-primary-soft); border-radius: 9px; }
+.neural-lab-external:hover { background: #e1e9ff; }
+.neural-lab-frame { display: block; width: 100%; height: max(620px, calc(100vh - 250px)); border: 1px solid var(--color-border); border-radius: 12px; background: #0b0f17; }
+@media (max-width: 760px) {
+  .neural-lab .page-head { flex-direction: column; align-items: flex-start; gap: 12px; }
+  /* На телефоне рамку растягиваем на всю ширину экрана: лаборатории нужно место */
+  .neural-lab-frame { width: 100vw; margin-left: calc(50% - 50vw); height: max(560px, calc(100vh - 300px)); border-radius: 0; border-inline: 0; }
+}

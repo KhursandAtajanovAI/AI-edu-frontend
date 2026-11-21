@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import https from 'node:https'
 import http from 'node:http'
 import { voiceAssets } from './voiceAssets'
+import { neuralLab } from './neuralLab'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -17,7 +18,7 @@ export default defineConfig(({ mode }) => {
   })
 
   return {
-    plugins: [react(), tailwindcss(), voiceAssets()],
+    plugins: [react(), tailwindcss(), voiceAssets(), neuralLab()],
     server: {
       host: '0.0.0.0',
       proxy: {

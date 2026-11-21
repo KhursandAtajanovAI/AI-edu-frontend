@@ -29,6 +29,7 @@ const TestEditor = lazy(() => import('./AdminPages').then(module => ({ default: 
 const AdminCurriculum = lazy(() => import('./AdminCurriculum').then(module => ({ default: module.AdminCurriculum })))
 const CurriculumEntityPage = lazy(() => import('./curriculum/CurriculumEntityPage').then(module => ({ default: module.CurriculumEntityPage })))
 
+const NeuralLabPage = lazy(() => import('./NeuralLabPage').then(module => ({ default: module.NeuralLabPage })))
 const MyLearningPage = lazy(() => import('./MyLearningPage').then(module => ({ default: module.MyLearningPage })))
 const CertificatePage = lazy(() => import('./ProgramJourney').then(module => ({ default: module.CertificatePage })))
 
@@ -54,6 +55,7 @@ export default function App() {
     <Route path="/" element={<ProtectedPage user={user}>{user?.role === 'ADMIN' ? <Navigate to="/admin/curriculum" replace/> : <MyLearningPage user={user!}/>}</ProtectedPage>}/>
     <Route path="/progress" element={<ProtectedPage user={user}>{user?.role === 'ADMIN' ? <Navigate to="/admin/analytics" replace/> : <ReadinessPage/>}</ProtectedPage>}/>
     <Route path="/catalog" element={<ProtectedPage user={user}><CatalogPage/></ProtectedPage>}/>
+    <Route path="/lab" element={<ProtectedPage user={user}><NeuralLabPage/></ProtectedPage>}/>
     <Route path="/courses/:slug" element={<ProtectedPage user={user}><CoursePage/></ProtectedPage>}/>
     <Route path="/lessons/:id" element={user ? <LessonPage/> : <Navigate to="/login" replace/>}/>
     <Route path="/items/:id" element={user ? <LearningItemPage user={user}/> : <Navigate to="/login" replace/>}/>

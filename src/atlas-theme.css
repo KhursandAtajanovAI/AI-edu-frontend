@@ -184,3 +184,12 @@ h1, h2, h3 { color: var(--color-ink); letter-spacing: 0; }
 @media (prefers-reduced-motion: reduce) {
   .button, .input, .auth-mode a, .language-tabs button { transition: none; }
 }
+
+/* Четыре пункта меню (с «3D-лабораторией») на телефоне не должны выходить за экран: пункты сжимаются и при нехватке места переносятся */
+@media (max-width: 760px) {
+  .main-layout .main-nav, .admin-header .main-nav { flex-wrap: wrap; }
+  .main-layout .main-nav-link, .admin-header .main-nav-link { min-width: 0; padding-inline: 6px; }
+}
+@media (max-width: 480px) {
+  .main-layout .main-nav-link svg, .admin-header .main-nav-link svg { display: none; }
+}
