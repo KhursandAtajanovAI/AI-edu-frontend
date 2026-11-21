@@ -995,5 +995,10 @@
   "Адрес лаборатории": "Laboratory address",
   "Нужен HTTPS-адрес без логина и пароля (для разработки допустим http://localhost).": "An HTTPS address without a login and password is required (http://localhost is allowed for development).",
   "Язык лаборатории": "Laboratory language",
-  "Как в платформе": "Same as the platform"
+  "Как в платформе": "Same as the platform",
+  "3D-лаборатория нейросетей": "Neural network 3D lab",
+  "Интерактивная практика": "Interactive practice",
+  "Интерактивные 3D-модели нейросетей: смотрите, как они устроены, запускайте вычисления и меняйте параметры.": "Interactive 3D models of neural networks: see how they are built, run computations and change parameters.",
+  "Открыть в новой вкладке": "Open in a new tab",
+  "3D-лаборатория": "3D lab"
 }
