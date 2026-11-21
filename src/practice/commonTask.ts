@@ -3,7 +3,7 @@ import type { LessonAttachment } from '../api'
 import { workshopFor } from '../workspace/workshops'
 
 export type TaskConfig = { instructions: string[]; criteria: Criterion[]; source_url?: string; source_files?: LessonAttachment[] }
-export const hasCommonTask = (type: string) => type === 'guided_assignment' || !!workshopFor(type)
+export const hasCommonTask = (type: string) => type === 'guided_assignment' || type === 'biometric_lab' || !!workshopFor(type)
 export function defaultTaskConfig(): TaskConfig {
   return {
     instructions: [JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', attrs: { textAlign: null }, content: [{ type: 'text',
