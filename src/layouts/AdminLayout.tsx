@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { BarChart3, FlaskConical, Layers3, Users } from 'lucide-react'
+import { BarChart3, Box, FlaskConical, History, Layers3, Users } from 'lucide-react'
 import type { User } from '../api'
 import { LanguageSelect, useI18n } from '../i18n'
 import { AccountMenu } from './AccountMenu'
@@ -28,6 +28,8 @@ export function AdminLayout({ user, children }: { user: User; children: ReactNod
         <NavLink to="/admin/users" className={({ isActive }) => `main-nav-link ${isActive ? 'active' : ''}`}><Users size={17}/>{t('Пользователи')}</NavLink>
         <NavLink to="/admin/analytics" className={({ isActive }) => `main-nav-link ${isActive ? 'active' : ''}`}><BarChart3 size={17}/>{t('Аналитика')}</NavLink>
         <NavLink to="/virtual-labs" className={({ isActive }) => `main-nav-link ${isActive ? 'active' : ''}`}><FlaskConical size={17}/>{t('Виртуальные лаборатории')}</NavLink>
+        <NavLink to="/admin/activity" className={({ isActive }) => `main-nav-link ${isActive ? 'active' : ''}`}><History size={17}/>{t('Журнал')}</NavLink>
+        <NavLink to="/lab" className={({ isActive }) => `main-nav-link ${isActive ? 'active' : ''}`}><Box size={17}/>{t('3D-лаборатория')}</NavLink>
       </nav>
       <LanguageSelect compact/><AccountMenu user={user} admin/>
     </div></header>
